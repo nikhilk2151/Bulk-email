@@ -182,7 +182,7 @@ async def send_bulk_emails(
 @app.get("/")
 async def index(request: Request):
     """Serve the main HTML page."""
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 
 @app.post("/api/verify-gate")
