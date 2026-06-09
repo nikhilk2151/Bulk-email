@@ -551,6 +551,120 @@ textarea {
     align-items: center;
 }
 
+/* File Drop Zone */
+.file-drop-zone {
+    border: 2px dashed rgba(99, 102, 241, 0.35);
+    border-radius: 10px;
+    padding: 1.1rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    background: rgba(99, 102, 241, 0.04);
+    position: relative;
+}
+
+.file-drop-zone:hover {
+    border-color: rgba(99, 102, 241, 0.65);
+    background: rgba(99, 102, 241, 0.09);
+}
+
+.file-drop-zone.drag-over {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.15);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    transform: scale(1.01);
+}
+
+.file-drop-zone.file-loaded {
+    border-color: rgba(16, 185, 129, 0.4);
+    background: rgba(16, 185, 129, 0.05);
+    cursor: default;
+}
+
+.drop-zone-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    pointer-events: none;
+}
+
+.drop-icon {
+    font-size: 1.6rem;
+    color: var(--primary);
+    margin-bottom: 0.2rem;
+    transition: transform 0.2s;
+}
+
+.file-drop-zone:hover .drop-icon {
+    transform: translateY(-3px);
+}
+
+.drop-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.drop-subtitle {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.drop-link {
+    color: var(--primary);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+/* File info bar shown after file is loaded */
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    border-radius: 7px;
+    padding: 0.55rem 0.85rem;
+    font-size: 0.82rem;
+    color: #6ee7b7;
+    margin-top: 0.6rem;
+    text-align: left;
+}
+
+.file-info i {
+    color: var(--success);
+    flex-shrink: 0;
+}
+
+.file-info span {
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.clear-file-btn {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+    border-radius: 5px;
+    padding: 0.2rem 0.45rem;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.clear-file-btn:hover {
+    background: rgba(239, 68, 68, 0.3);
+    color: white;
+}
+
 /* Responsive adjustments */
 @media (max-width: 900px) {
     .dashboard-grid {

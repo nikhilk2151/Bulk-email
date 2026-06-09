@@ -21,6 +21,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const detectedCount = document.getElementById('detected-count');
     const emailValidationError = document.getElementById('email-validation-error');
 
+    // DOM Elements - File Upload
+    const fileDropZone = document.getElementById('file-drop-zone');
+    const fileUploadInput = document.getElementById('file-upload-input');
+    const fileInfo = document.getElementById('file-info');
+    const fileNameLabel = document.getElementById('file-name-label');
+    const clearFileBtn = document.getElementById('clear-file-btn');
+
     // DOM Elements - Progress Monitor
     const statTotal = document.getElementById('stat-total');
     const statSent = document.getElementById('stat-sent');
@@ -110,6 +117,76 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             emailValidationError.classList.add('hidden');
         }
+    });
+
+    // --- FILE UPLOAD LOGIC ---
+    function processFile(file) {
+        if (!file) return;
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!['csv', 'txt'].includes(ext)) {
+            alert('Only .csv and .txt files are supported.');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const content = e.target.result;
+            const emails = parseAndCleanEmails(content);
+            // Merge with existing textarea content
+            const existing = parseAndCleanEmails(recipientsInput.value);
+            const merged = [...new Set([...existing, ...emails])];
+            recipientsInput.value = merged.join('\n');
+            parsedEmails = merged;
+            detectedCount.textContent = `${merged.length} found`;
+            statTotal.textContent = merged.length;
+            statRemaining.textContent = merged.length;
+            emailValidationError.classList.add('hidden');
+            // Show file info
+            fileNameLabel.textContent = `${file.name}  (${emails.length} emails found)`;
+            fileInfo.classList.remove('hidden');
+            fileDropZone.classList.add('file-loaded');
+        };
+        reader.readAsText(file);
+    }
+
+    // Click to browse
+    fileDropZone.addEventListener('click', (e) => {
+        if (e.target === clearFileBtn || clearFileBtn.contains(e.target)) return;
+        fileUploadInput.click();
+    });
+
+    fileUploadInput.addEventListener('change', () => {
+        if (fileUploadInput.files.length > 0) {
+            processFile(fileUploadInput.files[0]);
+        }
+    });
+
+    // Drag and drop
+    fileDropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        fileDropZone.classList.add('drag-over');
+    });
+    fileDropZone.addEventListener('dragleave', () => {
+        fileDropZone.classList.remove('drag-over');
+    });
+    fileDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileDropZone.classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (file) processFile(file);
+    });
+
+    // Clear file
+    clearFileBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        fileUploadInput.value = '';
+        fileInfo.classList.add('hidden');
+        fileDropZone.classList.remove('file-loaded');
+        // Clear textarea too
+        recipientsInput.value = '';
+        parsedEmails = [];
+        detectedCount.textContent = '0 found';
+        statTotal.textContent = '0';
+        statRemaining.textContent = '0';
     });
 
     // --- BULK EMAIL SENDING STATE MACHINE ---

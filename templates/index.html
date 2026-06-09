@@ -90,8 +90,7 @@
                         <!-- Anti Spam Turnstile -->
                         <div class="form-group" style="margin-top: 1rem;">
                             <label><i class="fa-solid fa-shield-cat"></i> Spam Protection</label>
-                            <!-- Uses Cloudflare Turnstile Always Pass sitekey for local testing. Configurable. -->
-                            <div id="cf-turnstile-container" class="cf-turnstile" data-sitekey="1x00000000000000000000AA" data-theme="dark"></div>
+                            <div class="cf-turnstile" data-sitekey="1x00000000000000000000AA" data-theme="light"></div>
                         </div>
                     </form>
                 </div>
@@ -103,7 +102,25 @@
                             <h3><i class="fa-solid fa-users"></i> Recipients</h3>
                             <span class="badge" id="detected-count">0 found</span>
                         </div>
-                        <p class="help-subtext">Paste emails (comma separated, new lines, or Excel copy)</p>
+
+                        <!-- File Upload Drop Zone -->
+                        <div id="file-drop-zone" class="file-drop-zone">
+                            <input type="file" id="file-upload-input" class="hidden">
+                            <div class="drop-zone-content">
+                                <i class="fa-solid fa-file-arrow-up drop-icon"></i>
+                                <p class="drop-title">Upload CSV or TXT file</p>
+                                <p class="drop-subtitle">Drag & drop here, or <span class="drop-link">click to browse</span></p>
+                            </div>
+                            <div id="file-info" class="file-info hidden">
+                                <i class="fa-solid fa-file-lines"></i>
+                                <span id="file-name-label">No file selected</span>
+                                <button type="button" id="clear-file-btn" class="clear-file-btn" title="Remove file">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <p class="help-subtext"><i class="fa-solid fa-circle-info"></i> Or paste emails below (comma, space, or newline separated)</p>
                         <div class="form-group flex-grow">
                             <textarea id="recipients-input"
                                 placeholder="john@example.com&#10;jane@example.com"></textarea>

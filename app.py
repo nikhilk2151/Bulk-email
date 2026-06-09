@@ -18,19 +18,30 @@ if os.getenv("VERCEL") is None:
 
 app = FastAPI(
     title="Secure Mail Console",
-    description="Bulk Email Sending Platform with Gate Protection and Anti‑Spam Verification"
+    description="Bulk Email Sending Platform with Gate Protection and Anti-Spam Verification",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None
 )
 
-os.makedirs("static", exist_ok=True)
-os.makedirs("templates", exist_ok=True)
-
+# Mount static files (CSS, JS)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Jinja2 templates
 templates = Jinja2Templates(directory="templates")
+
+
+# ── Models ──────────────────────────────────────────────────────────────────
 
 class VerifyPasswordRequest(BaseModel):
     password: str
 
-def create_mime_message(sender_name: str, sender_email: str, recipient: str, subject: str, body: str) -> MIMEMultipart:
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+def create_mime_message(
+    sender_name: str, sender_email: str, recipient: str, subject: str, body: str
+) -> MIMEMultipart:
     message = MIMEMultipart()
     message["From"] = f"{sender_name} <{sender_email}>"
     message["To"] = recipient
@@ -38,7 +49,9 @@ def create_mime_message(sender_name: str, sender_email: str, recipient: str, sub
     message.attach(MIMEText(body, "plain", "utf-8"))
     return message
 
+
 async def verify_turnstile(token: str, remote_ip: str) -> bool:
+    # Allow dummy / test site-key tokens in dev
     if token == "XXXX.DUMMY.TOKEN.XXXX" or token.startswith("1x00000000000000000000AA"):
         return True
     if os.getenv("VERCEL"):
@@ -49,7 +62,11 @@ async def verify_turnstile(token: str, remote_ip: str) -> bool:
     url = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
     async with httpx.AsyncClient() as client:
         try:
-            resp = await client.post(url, data={"secret": secret, "response": token, "remoteip": remote_ip}, timeout=10.0)
+            resp = await client.post(
+                url,
+                data={"secret": secret, "response": token, "remoteip": remote_ip},
+                timeout=10.0,
+            )
             data = resp.json()
             return data.get("success", False)
         except Exception as e:
@@ -58,12 +75,13 @@ async def verify_turnstile(token: str, remote_ip: str) -> bool:
                 return True
             return False
 
+
 async def send_bulk_emails(
     websocket: WebSocket,
     credentials: dict,
     email_details: dict,
     recipients: list,
-    session_state: dict
+    session_state: dict,
 ):
     sender_email = credentials["email"]
     sender_password = credentials["password"]
@@ -74,12 +92,16 @@ async def send_bulk_emails(
     sent = 0
     failed = 0
     smtp = None
+
+    # ── SMTP connect ────────────────────────────────────────────────────────
     try:
         smtp = aiosmtplib.SMTP(hostname="smtp.gmail.com", port=587, use_tls=False)
         await smtp.connect()
         await smtp.login(sender_email, sender_password)
     except aiosmtplib.SMTPAuthenticationError:
-        await websocket.send_json({"type": "error", "message": "SMTP Authentication failed. Verify Gmail address and App Password."})
+        await websocket.send_json(
+            {"type": "error", "message": "SMTP Authentication failed. Verify Gmail address and App Password."}
+        )
         if smtp:
             await smtp.quit()
         return
@@ -89,14 +111,33 @@ async def send_bulk_emails(
             await smtp.quit()
         return
 
+    # ── Send loop ───────────────────────────────────────────────────────────
     for idx, recipient in enumerate(recipients):
         if session_state.get("cancelled"):
-            await websocket.send_json({"type": "stopped", "sent": sent, "failed": failed,
-                                      "remaining": total - idx, "processed": idx, "total": total})
+            await websocket.send_json(
+                {
+                    "type": "stopped",
+                    "sent": sent,
+                    "failed": failed,
+                    "remaining": total - idx,
+                    "processed": idx,
+                    "total": total,
+                }
+            )
             break
-        await websocket.send_json({"type": "progress", "sent": sent, "failed": failed,
-                                  "remaining": total - idx, "processed": idx, "total": total,
-                                  "current_recipient": recipient})
+
+        await websocket.send_json(
+            {
+                "type": "progress",
+                "sent": sent,
+                "failed": failed,
+                "remaining": total - idx,
+                "processed": idx,
+                "total": total,
+                "current_recipient": recipient,
+            }
+        )
+
         try:
             msg = create_mime_message(sender_name, sender_email, recipient, subject, body)
             if not smtp.is_connected:
@@ -107,20 +148,42 @@ async def send_bulk_emails(
         except Exception as e:
             print(f"[SMTP] Error sending to {recipient}: {e}")
             failed += 1
-        await websocket.send_json({"type": "progress", "sent": sent, "failed": failed,
-                                  "remaining": total - (idx + 1), "processed": idx + 1, "total": total,
-                                  "current_recipient": ""})
+
+        await websocket.send_json(
+            {
+                "type": "progress",
+                "sent": sent,
+                "failed": failed,
+                "remaining": total - (idx + 1),
+                "processed": idx + 1,
+                "total": total,
+                "current_recipient": "",
+            }
+        )
         await asyncio.sleep(1.5)
     else:
-        await websocket.send_json({"type": "complete", "sent": sent, "failed": failed,
-                                  "remaining": 0, "processed": total, "total": total})
+        await websocket.send_json(
+            {
+                "type": "complete",
+                "sent": sent,
+                "failed": failed,
+                "remaining": 0,
+                "processed": total,
+                "total": total,
+            }
+        )
 
     if smtp:
         await smtp.quit()
 
+
+# ── Routes ───────────────────────────────────────────────────────────────────
+
 @app.get("/")
-async def serve_index(request: Request):
+async def index(request: Request):
+    """Serve the main HTML page."""
     return templates.TemplateResponse("index.html", {"request": request})
+
 
 @app.post("/api/verify-gate")
 async def verify_gate(request: VerifyPasswordRequest):
@@ -129,8 +192,11 @@ async def verify_gate(request: VerifyPasswordRequest):
         raise RuntimeError("GATE_PASSWORD not set in environment")
     if request.password == expected:
         return {"success": True}
-    return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED,
-                        content={"success": False, "message": "Incorrect password"})
+    return JSONResponse(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        content={"success": False, "message": "Incorrect password"},
+    )
+
 
 @app.websocket("/ws/send")
 async def websocket_send(websocket: WebSocket):
@@ -165,10 +231,13 @@ async def websocket_send(websocket: WebSocket):
             session_state["cancelled"] = True
             sender_task.cancel()
 
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+
 if __name__ == "__main__":
     import uvicorn, traceback
     try:
-        uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=False)
+        uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=True)
     except Exception:
         print("[Startup Failure]", traceback.format_exc())
         raise
