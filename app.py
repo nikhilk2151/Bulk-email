@@ -31,7 +31,7 @@ class VerifyPasswordRequest(BaseModel):
     password: str
 
 # Helper to create email messages
-def create_mime_message(sender_name, sender_email, recipient, subject, body) -> MIMEMultipart:
+def create_mime_message(sender_name: str, sender_email: str, recipient: str, subject: str, body: str) -> MIMEMultipart:
     message = MIMEMultipart()
     # E.g., "Sender Name <sender@gmail.com>"
     message["From"] = f"{sender_name} <{sender_email}>"
@@ -43,7 +43,7 @@ def create_mime_message(sender_name, sender_email, recipient, subject, body) -> 
     return message
 
 # Verify Cloudflare Turnstile token
-async def verify_turnstile(token, remote_ip) -> bool:
+async def verify_turnstile(token: str, remote_ip: str) -> bool:
     # Always passes testing sitekey/token check:
     if token == "XXXX.DUMMY.TOKEN.XXXX" or token.startswith("1x00000000000000000000AA"):
         return True
@@ -287,5 +287,5 @@ async def websocket_send(websocket: WebSocket):
 # Entry point
 if __name__ == "__main__":
     import uvicorn
-    # Default to port, reload disabled for stability in OneDrive sync dirs
+    # Default to port 8000, reload disabled for stability in OneDrive sync dirs
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=False)
