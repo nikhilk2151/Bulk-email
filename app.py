@@ -216,6 +216,11 @@ async def index(request: Request):
     """Serve the main HTML page."""
     return templates.TemplateResponse(request=request, name="index.html")
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
 
 @app.post("/api/verify-gate")
 async def verify_gate(request: VerifyPasswordRequest):
