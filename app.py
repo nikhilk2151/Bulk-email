@@ -11,6 +11,15 @@ from email.mime.text import MIMEText
 from email.header import Header
 import aiosmtplib
 from dotenv import load_dotenv
+import logging
+import time
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger("app")
 
 # Load env vars locally
 if os.getenv("VERCEL") is None:
@@ -23,6 +32,29 @@ app = FastAPI(
     redoc_url=None,
     openapi_url=None
 )
+
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Application is starting up...")
+    logger.info("Verifying static and template directories...")
+    if not os.path.exists("static"):
+        logger.error("CRITICAL: 'static' directory NOT FOUND!")
+    if not os.path.exists("templates"):
+        logger.error("CRITICAL: 'templates' directory NOT FOUND!")
+    logger.info("Startup complete. Application is ready to accept requests.")
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    logger.info(f"Incoming Request: {request.method} {request.url}")
+    try:
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        logger.info(f"Request Completed: {request.method} {request.url} | Status: {response.status_code} | Time: {process_time:.4f}s")
+        return response
+    except Exception as e:
+        logger.error(f"Request Failed: {request.method} {request.url} | Error: {str(e)}", exc_info=True)
+        raise
 
 # Mount static files (CSS, JS)
 app.mount("/static", StaticFiles(directory="static"), name="static")
