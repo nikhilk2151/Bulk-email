@@ -127,19 +127,21 @@ async def send_bulk_emails(
 
     # ── SMTP connect ────────────────────────────────────────────────────────
     try:
-        smtp = aiosmtplib.SMTP(hostname="smtp.gmail.com", port=465, use_tls=True)
+        smtp = aiosmtplib.SMTP(hostname="smtp.gmail.com", port=465, use_tls=True, timeout=10.0)
         await smtp.connect()
         await smtp.login(sender_email, sender_password)
     except aiosmtplib.SMTPAuthenticationError:
+        logger.error("SMTP Authentication failed.")
         await websocket.send_json(
             {"type": "error", "message": "SMTP Authentication failed. Verify Gmail address and App Password."}
         )
-        if smtp:
+        if smtp and smtp.is_connected:
             await smtp.quit()
         return
     except Exception as e:
-        await websocket.send_json({"type": "error", "message": f"SMTP connection error: {e}"})
-        if smtp:
+        logger.error(f"SMTP connection error: {e}")
+        await websocket.send_json({"type": "error", "message": f"SMTP connection error: {e}. Please ensure outbound email is allowed."})
+        if smtp and smtp.is_connected:
             await smtp.quit()
         return
 
@@ -252,7 +254,8 @@ async def websocket_send(websocket: WebSocket):
                 token = message.get("turnstile_token")
                 client_ip = websocket.client.host if websocket.client else "127.0.0.1"
                 if not await verify_turnstile(token, client_ip):
-                    await websocket.send_json({"type": "error", "message": "Turnstile verification failed"})
+                    logger.warning(f"Turnstile verification failed for IP {client_ip}")
+                    await websocket.send_json({"type": "error", "message": "Turnstile verification failed (check CF_SECRET_KEY)"})
                     continue
                 session_state["cancelled"] = False
                 sender_task = asyncio.create_task(
