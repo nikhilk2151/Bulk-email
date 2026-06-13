@@ -127,7 +127,7 @@ async def send_bulk_emails(
 
     # ── SMTP connect ────────────────────────────────────────────────────────
     try:
-        smtp = aiosmtplib.SMTP(hostname="smtp.gmail.com", port=587, use_tls=False)
+        smtp = aiosmtplib.SMTP(hostname="smtp.gmail.com", port=465, use_tls=True)
         await smtp.connect()
         await smtp.login(sender_email, sender_password)
     except aiosmtplib.SMTPAuthenticationError:
