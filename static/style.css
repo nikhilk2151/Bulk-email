@@ -128,13 +128,20 @@ body {
     font-size: 0.95rem;
 }
 
+#gate-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    width: 100%;
+}
+
 .gate-error {
     background: rgba(239, 68, 68, 0.12);
     border: 1px solid rgba(239, 68, 68, 0.25);
     color: #fca5a5;
     padding: 0.75rem 1rem;
     border-radius: var(--border-radius);
-    margin-bottom: 1.25rem;
+    margin-bottom: 0;
     font-size: 0.875rem;
     display: flex;
     align-items: center;
@@ -347,9 +354,11 @@ textarea {
     width: 100%;
 }
 
-.password-wrapper input {
+.password-wrapper input,
+.password-wrapper input[type="text"],
+.password-wrapper input[type="password"] {
     width: 100%;
-    padding-right: 2.75rem;
+    padding-right: 3rem !important;
 }
 
 .icon-button {
