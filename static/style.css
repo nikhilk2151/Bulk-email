@@ -131,7 +131,7 @@ body {
 #gate-form {
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: 2rem;
     width: 100%;
 }
 
