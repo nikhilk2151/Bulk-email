@@ -61,11 +61,15 @@ async def log_requests(request: Request, call_next):
         logger.error(f"Request Failed: {request.method} {request.url} | Error: {str(e)}", exc_info=True)
         raise
 
-# Mount static files (CSS, JS)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Mount static files (CSS, JS) with absolute paths
+static_dir = os.path.join(BASE_DIR, "static")
+templates_dir = os.path.join(BASE_DIR, "templates")
+
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Jinja2 templates
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=templates_dir if os.path.exists(templates_dir) else "templates")
 
 
 # ── Models ──────────────────────────────────────────────────────────────────
