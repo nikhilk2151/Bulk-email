@@ -15,6 +15,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const senderName = document.getElementById('sender-name');
     const emailSubject = document.getElementById('subject');
     const messageBody = document.getElementById('message-body');
+    const richEditor = document.getElementById('rich-editor');
+    const editorToolbar = document.getElementById('editor-toolbar');
+    const fontFamilySelect = document.getElementById('font-family-select');
+    const fontSizeSelect = document.getElementById('font-size-select');
+    const formatBlockSelect = document.getElementById('format-block-select');
+    const btnToggleSource = document.getElementById('btn-toggle-source');
+    const btnSampleTemplate = document.getElementById('btn-sample-template');
+    const textColorPicker = document.getElementById('text-color-picker');
+    const bgColorPicker = document.getElementById('bg-color-picker');
+    const textColorIndicator = document.getElementById('text-color-indicator');
+    const bgColorIndicator = document.getElementById('bg-color-indicator');
+    const btnInsertLink = document.getElementById('btn-insert-link');
+    const editorWordCount = document.getElementById('editor-word-count');
 
     // DOM Elements - Recipients
     const recipientsInput = document.getElementById('recipients-input');
@@ -197,6 +210,13 @@ document.addEventListener('DOMContentLoaded', () => {
         emailSubject.disabled = disabled;
         messageBody.disabled = disabled;
         recipientsInput.disabled = disabled;
+        if (richEditor) {
+            richEditor.contentEditable = (!disabled).toString();
+        }
+        if (editorToolbar) {
+            editorToolbar.style.opacity = disabled ? '0.4' : '1';
+            editorToolbar.style.pointerEvents = disabled ? 'none' : 'auto';
+        }
     }
 
     function resetStats() {
@@ -229,6 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Start Send Process
     sendBtn.addEventListener('click', () => {
         if (isSending) return;
+        syncEditorContent();
 
         // Perform validation
         if (!composeForm.checkValidity()) {
@@ -282,7 +303,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 email_details: {
                     subject: emailSubject.value.trim(),
-                    body: messageBody.value
+                    body: messageBody.value,
+                    is_html: true
                 },
                 recipients: parsedEmails,
                 turnstile_token: turnstileToken
@@ -348,6 +370,225 @@ document.addEventListener('DOMContentLoaded', () => {
         // Send stop command via WebSocket
         socket.send(JSON.stringify({ action: 'stop' }));
     });
+
+    
+    // --- RICH TEXT & MULTI-FONT EDITOR LOGIC ---
+    let isSourceMode = false;
+
+    function syncEditorContent() {
+        if (!richEditor) return;
+        const html = richEditor.innerHTML;
+        const text = richEditor.innerText.trim();
+        if (!text && (!html || html === '<br>' || html === '<p><br></p>')) {
+            messageBody.value = '';
+        } else {
+            messageBody.value = isSourceMode ? messageBody.value : html;
+        }
+        updateWordCount(text);
+    }
+
+    function updateWordCount(text) {
+        if (!editorWordCount) return;
+        const chars = text ? text.length : 0;
+        const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
+        editorWordCount.textContent = `${words} word${words === 1 ? '' : 's'} | ${chars} character${chars === 1 ? '' : 's'}`;
+    }
+
+    function updateToolbarActiveState() {
+        if (!editorToolbar || isSourceMode) return;
+        const commands = ['bold', 'italic', 'underline', 'strikeThrough', 'justifyLeft', 'justifyCenter', 'justifyRight', 'justifyFull', 'insertUnorderedList', 'insertOrderedList'];
+        commands.forEach(cmd => {
+            const btn = editorToolbar.querySelector(`.btn-tool[data-command="${cmd}"]`);
+            if (btn) {
+                try {
+                    if (document.queryCommandState(cmd)) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                } catch (e) {}
+            }
+        });
+    }
+
+    if (richEditor && editorToolbar) {
+        editorToolbar.querySelectorAll('.btn-tool[data-command]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (isSourceMode) return;
+                const cmd = btn.dataset.command;
+                richEditor.focus();
+                document.execCommand('styleWithCSS', false, true);
+                document.execCommand(cmd, false, null);
+                syncEditorContent();
+                updateToolbarActiveState();
+            });
+        });
+
+        if (fontFamilySelect) {
+            fontFamilySelect.addEventListener('change', () => {
+                if (isSourceMode) return;
+                const font = fontFamilySelect.value;
+                if (!font) return;
+                richEditor.focus();
+                document.execCommand('styleWithCSS', false, true);
+                document.execCommand('fontName', false, font);
+                syncEditorContent();
+                fontFamilySelect.selectedIndex = 0;
+            });
+        }
+
+        if (fontSizeSelect) {
+            fontSizeSelect.addEventListener('change', () => {
+                if (isSourceMode) return;
+                const size = fontSizeSelect.value;
+                if (!size) return;
+                richEditor.focus();
+                const sel = window.getSelection();
+                if (sel && sel.rangeCount > 0) {
+                    if (sel.isCollapsed) {
+                        const span = document.createElement('span');
+                        span.style.fontSize = size;
+                        span.innerHTML = '&#8203;';
+                        const range = sel.getRangeAt(0);
+                        range.insertNode(span);
+                        range.setStart(span, 1);
+                        range.collapse(true);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    } else {
+                        document.execCommand('styleWithCSS', false, true);
+                        document.execCommand('fontSize', false, '7');
+                        const fontSpans = richEditor.querySelectorAll('font[size="7"], span[style*="xxx-large"], span[style*="-webkit-xxx-large"]');
+                        fontSpans.forEach(el => {
+                            el.removeAttribute('size');
+                            el.style.fontSize = size;
+                        });
+                    }
+                }
+                syncEditorContent();
+                fontSizeSelect.selectedIndex = 0;
+            });
+        }
+
+        if (formatBlockSelect) {
+            formatBlockSelect.addEventListener('change', () => {
+                if (isSourceMode) return;
+                const block = formatBlockSelect.value;
+                if (!block) return;
+                richEditor.focus();
+                document.execCommand('formatBlock', false, `<${block}>`);
+                syncEditorContent();
+                formatBlockSelect.selectedIndex = 0;
+            });
+        }
+
+        if (textColorPicker) {
+            textColorPicker.addEventListener('input', (e) => {
+                if (isSourceMode) return;
+                richEditor.focus();
+                document.execCommand('styleWithCSS', false, true);
+                document.execCommand('foreColor', false, e.target.value);
+                if (textColorIndicator) textColorIndicator.style.backgroundColor = e.target.value;
+                syncEditorContent();
+            });
+        }
+
+        if (bgColorPicker) {
+            bgColorPicker.addEventListener('input', (e) => {
+                if (isSourceMode) return;
+                richEditor.focus();
+                document.execCommand('styleWithCSS', false, true);
+                if (!document.execCommand('hiliteColor', false, e.target.value)) {
+                    document.execCommand('backColor', false, e.target.value);
+                }
+                if (bgColorIndicator) bgColorIndicator.style.backgroundColor = e.target.value;
+                syncEditorContent();
+            });
+        }
+
+        if (btnInsertLink) {
+            btnInsertLink.addEventListener('click', () => {
+                if (isSourceMode) return;
+                richEditor.focus();
+                const url = prompt('Enter link URL (e.g. https://example.com):', 'https://');
+                if (url && url !== 'https://') {
+                    document.execCommand('createLink', false, url);
+                    syncEditorContent();
+                }
+            });
+        }
+
+        if (btnSampleTemplate) {
+            btnSampleTemplate.addEventListener('click', () => {
+                if (richEditor.innerText.trim() && !confirm('Insert formatted sample email? This will replace current text.')) {
+                    return;
+                }
+                richEditor.innerHTML = `
+<h1 style="color: #6366f1; font-family: 'Outfit', sans-serif; font-size: 26px; margin-bottom: 8px;">Exclusive Update &bull; Secure Mail Console</h1>
+<p style="font-family: Arial, sans-serif; font-size: 16px; color: #374151; line-height: 1.6;">
+  Hello there, this is a demonstration of our <strong>multi-font rich text capability</strong>. You can customize font families, sizes, weights, and colors!
+</p>
+<blockquote style="font-family: Georgia, serif; font-size: 15px; color: #4f46e5; border-left: 3px solid #6366f1; padding-left: 12px; margin: 12px 0;">
+  "Typography is the craft of endowing human language with a durable visual form."
+</blockquote>
+<p style="font-family: 'Fira Code', monospace; font-size: 14px; background: #f3f4f6; color: #1f2937; padding: 10px; border-radius: 6px;">
+  Code snippet in Monospace: verification_status = "verified"
+</p>
+<ul style="font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 15px; color: #374151;">
+  <li><strong>Outfit &amp; Inter:</strong> Modern, clean sans-serif UI typography</li>
+  <li><strong>Georgia &amp; Times:</strong> Elegant and authoritative serif headlines</li>
+  <li><strong>Comic Sans &amp; Brush Script:</strong> Friendly, casual &amp; playful announcements</li>
+  <li><span style="background-color: #fef08a; padding: 2px 6px; border-radius: 3px;">Full color highlighting</span> and custom hyperlinks</li>
+</ul>
+<hr style="border: none; border-top: 1px solid #e5e7eb; margin: 16px 0;">
+<p style="font-size: 13px; color: #9ca3af; font-family: Arial, sans-serif;">
+  Sent via <strong>Secure Mail Console</strong> &bull; <a href="https://localhost:8000" style="color: #6366f1;">Manage Preferences</a>
+</p>
+`;
+                if (isSourceMode) {
+                    messageBody.value = richEditor.innerHTML;
+                }
+                syncEditorContent();
+            });
+        }
+
+        if (btnToggleSource) {
+            btnToggleSource.addEventListener('click', () => {
+                isSourceMode = !isSourceMode;
+                if (isSourceMode) {
+                    messageBody.value = richEditor.innerHTML;
+                    richEditor.classList.add('hidden');
+                    messageBody.classList.remove('hidden');
+                    btnToggleSource.classList.add('active');
+                    btnToggleSource.innerHTML = '<i class="fa-solid fa-eye"></i> <span>Visual View</span>';
+                    editorToolbar.style.opacity = '0.4';
+                    editorToolbar.style.pointerEvents = 'none';
+                    messageBody.focus();
+                } else {
+                    richEditor.innerHTML = messageBody.value;
+                    messageBody.classList.add('hidden');
+                    richEditor.classList.remove('hidden');
+                    btnToggleSource.classList.remove('active');
+                    btnToggleSource.innerHTML = '<i class="fa-solid fa-code"></i> <span>HTML Code</span>';
+                    editorToolbar.style.opacity = '1';
+                    editorToolbar.style.pointerEvents = 'auto';
+                    richEditor.focus();
+                    syncEditorContent();
+                }
+            });
+        }
+
+        richEditor.addEventListener('input', syncEditorContent);
+        richEditor.addEventListener('keyup', updateToolbarActiveState);
+        richEditor.addEventListener('mouseup', updateToolbarActiveState);
+        messageBody.addEventListener('input', () => {
+            if (isSourceMode) {
+                const text = messageBody.value.replace(/<[^>]+>/g, '').trim();
+                updateWordCount(text);
+            }
+        });
+    }
 
     function finishSending() {
         isSending = false;

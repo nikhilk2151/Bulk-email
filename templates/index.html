@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Secure Mail Console</title>
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Custom CSS -->
@@ -82,9 +82,169 @@
                                 <input type="text" id="subject" placeholder="Enter subject line..." required>
                             </div>
                         </div>
-                        <div class="form-group flex-grow">
-                            <label for="message-body">Message Body (Plain Text)</label>
-                            <textarea id="message-body" placeholder="Write your email here..." required></textarea>
+                        <div class="form-group flex-grow rich-composer-group">
+                            <div class="editor-header-row">
+                                <label><i class="fa-solid fa-feather-pointed"></i> Message Body (Multiple Font & Format)</label>
+                                <div class="editor-header-actions">
+                                    <button type="button" id="btn-sample-template" class="btn-tool-text" title="Insert a formatted sample email">
+                                        <i class="fa-solid fa-wand-magic-sparkles"></i> <span>Sample</span>
+                                    </button>
+                                    <button type="button" id="btn-toggle-source" class="btn-tool-text" title="Toggle HTML Source Code View">
+                                        <i class="fa-solid fa-code"></i> <span>HTML Code</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Rich Text Toolbar -->
+                            <div class="editor-toolbar" id="editor-toolbar">
+                                <!-- Font Family Selection -->
+                                <div class="toolbar-group">
+                                    <select id="font-family-select" class="toolbar-select font-select" title="Font Family / Font Format">
+                                        <option value="" disabled selected>Font</option>
+                                        <optgroup label="Sans-Serif">
+                                            <option value="'Outfit', sans-serif" style="font-family: 'Outfit', sans-serif;">Outfit (Default)</option>
+                                            <option value="'Inter', sans-serif" style="font-family: 'Inter', sans-serif;">Inter</option>
+                                            <option value="'Roboto', sans-serif" style="font-family: 'Roboto', sans-serif;">Roboto</option>
+                                            <option value="Arial, sans-serif" style="font-family: Arial, sans-serif;">Arial</option>
+                                            <option value="'Helvetica Neue', Helvetica, sans-serif" style="font-family: 'Helvetica Neue', Helvetica, sans-serif;">Helvetica</option>
+                                            <option value="'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" style="font-family: 'Segoe UI', sans-serif;">Segoe UI</option>
+                                            <option value="'Trebuchet MS', sans-serif" style="font-family: 'Trebuchet MS', sans-serif;">Trebuchet MS</option>
+                                            <option value="Verdana, Geneva, sans-serif" style="font-family: Verdana, sans-serif;">Verdana</option>
+                                            <option value="Tahoma, sans-serif" style="font-family: Tahoma, sans-serif;">Tahoma</option>
+                                        </optgroup>
+                                        <optgroup label="Serif">
+                                            <option value="'Merriweather', serif" style="font-family: 'Merriweather', serif;">Merriweather</option>
+                                            <option value="'Playfair Display', serif" style="font-family: 'Playfair Display', serif;">Playfair Display</option>
+                                            <option value="'Times New Roman', Times, serif" style="font-family: 'Times New Roman', serif;">Times New Roman</option>
+                                            <option value="Georgia, serif" style="font-family: Georgia, serif;">Georgia</option>
+                                            <option value="Garamond, serif" style="font-family: Garamond, serif;">Garamond</option>
+                                            <option value="'Palatino Linotype', Palatino, serif" style="font-family: 'Palatino Linotype', serif;">Palatino</option>
+                                        </optgroup>
+                                        <optgroup label="Monospace">
+                                            <option value="'Fira Code', monospace" style="font-family: 'Fira Code', monospace;">Fira Code</option>
+                                            <option value="'Courier New', Courier, monospace" style="font-family: 'Courier New', monospace;">Courier New</option>
+                                            <option value="Consolas, monospace" style="font-family: Consolas, monospace;">Consolas</option>
+                                        </optgroup>
+                                        <optgroup label="Display / Handwriting">
+                                            <option value="'Comic Sans MS', cursive, sans-serif" style="font-family: 'Comic Sans MS', cursive;">Comic Sans</option>
+                                            <option value="Impact, Charcoal, sans-serif" style="font-family: Impact, sans-serif;">Impact</option>
+                                            <option value="'Brush Script MT', cursive" style="font-family: 'Brush Script MT', cursive;">Brush Script</option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+
+                                <!-- Font Size Selection -->
+                                <div class="toolbar-group">
+                                    <select id="font-size-select" class="toolbar-select size-select" title="Font Size">
+                                        <option value="" disabled selected>Size</option>
+                                        <option value="12px">12px (Small)</option>
+                                        <option value="14px">14px (Normal)</option>
+                                        <option value="16px">16px (Medium)</option>
+                                        <option value="18px">18px (Large)</option>
+                                        <option value="22px">22px (X-Large)</option>
+                                        <option value="28px">28px (Huge)</option>
+                                        <option value="36px">36px (Title)</option>
+                                    </select>
+                                </div>
+
+                                <!-- Heading / Block Format -->
+                                <div class="toolbar-group">
+                                    <select id="format-block-select" class="toolbar-select block-select" title="Text Style">
+                                        <option value="" disabled selected>Style</option>
+                                        <option value="p">Paragraph</option>
+                                        <option value="h1">Heading 1</option>
+                                        <option value="h2">Heading 2</option>
+                                        <option value="h3">Heading 3</option>
+                                        <option value="blockquote">Quote</option>
+                                        <option value="pre">Code</option>
+                                    </select>
+                                </div>
+
+                                <div class="toolbar-divider"></div>
+
+                                <!-- Font Styling -->
+                                <div class="toolbar-group">
+                                    <button type="button" class="btn-tool" data-command="bold" title="Bold (Ctrl+B)">
+                                        <i class="fa-solid fa-bold"></i>
+                                    </button>
+                                    <button type="button" class="btn-tool" data-command="italic" title="Italic (Ctrl+I)">
+                                        <i class="fa-solid fa-italic"></i>
+                                    </button>
+                                    <button type="button" class="btn-tool" data-command="underline" title="Underline (Ctrl+U)">
+                                        <i class="fa-solid fa-underline"></i>
+                                    </button>
+                                    <button type="button" class="btn-tool" data-command="strikeThrough" title="Strikethrough">
+                                        <i class="fa-solid fa-strikethrough"></i>
+                                    </button>
+                                </div>
+
+                                <div class="toolbar-divider"></div>
+
+                                <!-- Colors -->
+                                <div class="toolbar-group">
+                                    <label class="btn-tool color-tool" title="Text Color">
+                                        <i class="fa-solid fa-font"></i>
+                                        <span class="color-indicator" id="text-color-indicator"></span>
+                                        <input type="color" id="text-color-picker" value="#f3f4f6" class="color-input">
+                                    </label>
+                                    <label class="btn-tool color-tool" title="Highlight / Background Color">
+                                        <i class="fa-solid fa-highlighter"></i>
+                                        <span class="color-indicator" id="bg-color-indicator"></span>
+                                        <input type="color" id="bg-color-picker" value="#3b82f6" class="color-input">
+                                    </label>
+                                </div>
+
+                                <div class="toolbar-divider"></div>
+
+                                <!-- Alignment -->
+                                <div class="toolbar-group">
+                                    <button type="button" class="btn-tool" data-command="justifyLeft" title="Align Left">
+                                        <i class="fa-solid fa-align-left"></i>
+                                    </button>
+                                    <button type="button" class="btn-tool" data-command="justifyCenter" title="Align Center">
+                                        <i class="fa-solid fa-align-center"></i>
+                                    </button>
+                                    <button type="button" class="btn-tool" data-command="justifyRight" title="Align Right">
+                                        <i class="fa-solid fa-align-right"></i>
+                                    </button>
+                                    <button type="button" class="btn-tool" data-command="justifyFull" title="Justify">
+                                        <i class="fa-solid fa-align-justify"></i>
+                                    </button>
+                                </div>
+
+                                <div class="toolbar-divider"></div>
+
+                                <!-- Lists & Extras -->
+                                <div class="toolbar-group">
+                                    <button type="button" class="btn-tool" data-command="insertUnorderedList" title="Bullet List">
+                                        <i class="fa-solid fa-list-ul"></i>
+                                    </button>
+                                    <button type="button" class="btn-tool" data-command="insertOrderedList" title="Numbered List">
+                                        <i class="fa-solid fa-list-ol"></i>
+                                    </button>
+                                    <button type="button" class="btn-tool" id="btn-insert-link" title="Insert Link">
+                                        <i class="fa-solid fa-link"></i>
+                                    </button>
+                                    <button type="button" class="btn-tool" data-command="insertHorizontalRule" title="Horizontal Rule">
+                                        <i class="fa-solid fa-minus"></i>
+                                    </button>
+                                    <button type="button" class="btn-tool" data-command="removeFormat" title="Clear Formatting">
+                                        <i class="fa-solid fa-eraser"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Rich Text Editor Container -->
+                            <div class="editor-container">
+                                <div id="rich-editor" class="rich-editor" contenteditable="true" spellcheck="true" data-placeholder="Write your email here with multiple fonts, headings, colors, and styles..."></div>
+                                <textarea id="message-body" class="code-editor hidden" placeholder="Write your email or HTML code here..." required></textarea>
+                            </div>
+
+                            <!-- Editor Footer -->
+                            <div class="editor-footer">
+                                <span id="editor-word-count">0 words | 0 characters</span>
+                                <span class="format-badge"><i class="fa-solid fa-font"></i> Multi-Font & Rich Format Supported</span>
+                            </div>
                         </div>
                         
                         <!-- Anti Spam Turnstile -->

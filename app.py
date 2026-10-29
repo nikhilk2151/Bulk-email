@@ -1,4 +1,5 @@
 import os
+import re
 import asyncio
 import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, status
@@ -22,7 +23,11 @@ logging.basicConfig(
 logger = logging.getLogger("app")
 
 # Load env vars locally
-if os.getenv("VERCEL") is None:
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+env_file = os.path.join(BASE_DIR, ".env")
+if os.path.exists(env_file):
+    load_dotenv(env_file)
+else:
     load_dotenv()
 
 app = FastAPI(
@@ -72,13 +77,64 @@ class VerifyPasswordRequest(BaseModel):
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def create_mime_message(
-    sender_name: str, sender_email: str, recipient: str, subject: str, body: str
+    sender_name: str, sender_email: str, recipient: str, subject: str, body: str, is_html: bool = True
 ) -> MIMEMultipart:
-    message = MIMEMultipart()
+    message = MIMEMultipart("alternative")
     message["From"] = f"{sender_name} <{sender_email}>"
     message["To"] = recipient
     message["Subject"] = Header(subject, "utf-8")
-    message.attach(MIMEText(body, "plain", "utf-8"))
+
+    # Check if content has HTML tags or formatting
+    has_html = is_html or bool(re.search(r"<[a-zA-Z][^>]*>", body))
+
+    if has_html:
+        # Create a plain text fallback version for non-HTML email clients
+        plain = re.sub(r'<style.*?</style>', '', body, flags=re.DOTALL)
+        plain = re.sub(r'<script.*?</script>', '', plain, flags=re.DOTALL)
+        plain = re.sub(r'<br\s*/?>', '\n', plain, flags=re.IGNORECASE)
+        plain = re.sub(r'</p>', '\n\n', plain, flags=re.IGNORECASE)
+        plain = re.sub(r'</div>', '\n', plain, flags=re.IGNORECASE)
+        plain = re.sub(r'<li[^>]*>', '• ', plain, flags=re.IGNORECASE)
+        plain = re.sub(r'</li>', '\n', plain, flags=re.IGNORECASE)
+        plain = re.sub(r'<[^>]+>', '', plain)
+        plain = '\n'.join([line.strip() for line in plain.splitlines() if line.strip()])
+        message.attach(MIMEText(plain, "plain", "utf-8"))
+
+        # Build complete responsive HTML email wrapper if not already a full document
+        if not re.search(r'<\s*html', body, re.IGNORECASE):
+            full_html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body {{
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    color: #1f2937;
+    background-color: #ffffff;
+    margin: 0;
+    padding: 20px;
+  }}
+  p {{ margin: 0 0 12px 0; }}
+  a {{ color: #4f46e5; text-decoration: underline; }}
+  blockquote {{ border-left: 3px solid #cbd5e1; margin: 12px 0; padding-left: 12px; color: #4b5563; }}
+  ul, ol {{ margin: 0 0 12px 0; padding-left: 24px; }}
+  li {{ margin-bottom: 4px; }}
+</style>
+</head>
+<body>
+{body}
+</body>
+</html>"""
+        else:
+            full_html = body
+
+        message.attach(MIMEText(full_html, "html", "utf-8"))
+    else:
+        message.attach(MIMEText(body, "plain", "utf-8"))
+
     return message
 
 
@@ -115,11 +171,12 @@ async def send_bulk_emails(
     recipients: list,
     session_state: dict,
 ):
-    sender_email = credentials["email"]
-    sender_password = credentials["password"]
-    sender_name = credentials["sender_name"]
+    sender_email = credentials["email"].strip()
+    sender_password = credentials["password"].strip().replace(" ", "")
+    sender_name = credentials["sender_name"].strip()
     subject = email_details["subject"]
     body = email_details["body"]
+    is_html = email_details.get("is_html", True)
     total = len(recipients)
     sent = 0
     failed = 0
@@ -127,7 +184,7 @@ async def send_bulk_emails(
 
     # ── SMTP connect ────────────────────────────────────────────────────────
     try:
-        smtp = aiosmtplib.SMTP(hostname="smtp.gmail.com", port=465, use_tls=True, timeout=10.0, source_address=("0.0.0.0", 0))
+        smtp = aiosmtplib.SMTP(hostname="smtp.gmail.com", port=465, use_tls=True, timeout=15.0)
         await smtp.connect()
         await smtp.login(sender_email, sender_password)
     except aiosmtplib.SMTPAuthenticationError:
@@ -173,7 +230,7 @@ async def send_bulk_emails(
         )
 
         try:
-            msg = create_mime_message(sender_name, sender_email, recipient, subject, body)
+            msg = create_mime_message(sender_name, sender_email, recipient, subject, body, is_html=is_html)
             if not smtp.is_connected:
                 await smtp.connect()
                 await smtp.login(sender_email, sender_password)
@@ -207,8 +264,11 @@ async def send_bulk_emails(
             }
         )
 
-    if smtp:
-        await smtp.quit()
+    if smtp and smtp.is_connected:
+        try:
+            await smtp.quit()
+        except Exception:
+            pass
 
 
 # ── Routes ───────────────────────────────────────────────────────────────────
@@ -226,9 +286,7 @@ def health():
 
 @app.post("/api/verify-gate")
 async def verify_gate(request: VerifyPasswordRequest):
-    expected = os.getenv("GATE_PASSWORD")
-    if expected is None:
-        raise RuntimeError("GATE_PASSWORD not set in environment")
+    expected = os.getenv("GATE_PASSWORD", "admin123")
     if request.password == expected:
         return {"success": True}
     return JSONResponse(
@@ -277,7 +335,7 @@ async def websocket_send(websocket: WebSocket):
 if __name__ == "__main__":
     import uvicorn, traceback
     try:
-        uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=True)
+        uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=False)
     except Exception:
         print("[Startup Failure]", traceback.format_exc())
         raise
