@@ -24,11 +24,12 @@ logger = logging.getLogger("app")
 
 # Load env vars locally
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-env_file = os.path.join(BASE_DIR, ".env")
-if os.path.exists(env_file):
-    load_dotenv(env_file)
-else:
-    load_dotenv()
+if os.getenv("VERCEL") is None:
+    env_file = os.path.join(BASE_DIR, ".env")
+    if os.path.exists(env_file):
+        load_dotenv(env_file)
+    else:
+        load_dotenv()
 
 app = FastAPI(
     title="Secure Mail Console",
@@ -291,7 +292,7 @@ def health():
 @app.post("/api/verify-gate")
 async def verify_gate(request: VerifyPasswordRequest):
     expected = os.getenv("GATE_PASSWORD", "admin123")
-    if request.password == expected:
+    if expected is not None and request.password.strip() == expected.strip():
         return {"success": True}
     return JSONResponse(
         status_code=status.HTTP_401_UNAUTHORIZED,
