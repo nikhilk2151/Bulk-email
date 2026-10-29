@@ -288,12 +288,48 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/api/env-debug")
+def env_debug():
+    """Diagnostic endpoint to inspect environment variable status without leaking secrets."""
+    gate_val = (
+        os.getenv("GATE_PASSWORD")
+        or os.getenv("PASSWORD")
+        or os.getenv("ADMIN_PASSWORD")
+        or os.getenv("GATE_PASS")
+        or os.getenv("Gate_Password")
+        or os.getenv("gate_password")
+    )
+    return {
+        "GATE_PASSWORD_found": bool(os.getenv("GATE_PASSWORD")),
+        "PASSWORD_found": bool(os.getenv("PASSWORD")),
+        "ADMIN_PASSWORD_found": bool(os.getenv("ADMIN_PASSWORD")),
+        "GATE_PASS_found": bool(os.getenv("GATE_PASS")),
+        "active_password_length": len(gate_val.strip().strip('"').strip("'")) if gate_val else len("admin123"),
+        "is_using_default_admin123": (not gate_val or gate_val == "admin123"),
+        "environment": "Vercel" if os.getenv("VERCEL") else "Local"
+    }
+
 
 @app.post("/api/verify-gate")
 async def verify_gate(request: VerifyPasswordRequest):
-    expected = os.getenv("GATE_PASSWORD", "admin123")
-    if expected is not None and request.password.strip() == expected.strip():
+    # Support multiple environment variable names the user may have configured in Vercel
+    raw_expected = (
+        os.getenv("GATE_PASSWORD")
+        or os.getenv("PASSWORD")
+        or os.getenv("ADMIN_PASSWORD")
+        or os.getenv("GATE_PASS")
+        or os.getenv("Gate_Password")
+        or os.getenv("gate_password")
+        or "admin123"
+    )
+
+    # Clean whitespace and accidental surrounding quotes from Vercel UI
+    expected = str(raw_expected).strip().strip('"').strip("'")
+    submitted = str(request.password).strip().strip('"').strip("'")
+
+    if submitted == expected:
         return {"success": True}
+
     return JSONResponse(
         status_code=status.HTTP_401_UNAUTHORIZED,
         content={"success": False, "message": "Incorrect password"},
